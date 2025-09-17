@@ -1,4 +1,4 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template_string
 import threading
 import time
 import asyncio
@@ -16,6 +16,206 @@ bot_state = {
     'last_error': None,
     'start_time': None
 }
+
+# HTML template con botones
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bot de Trading Binance</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background-color: #f5f5f5; 
+        }
+        .container { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 10px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+        }
+        h1 { 
+            color: #2c3e50; 
+            text-align: center; 
+            margin-bottom: 30px; 
+        }
+        .status { 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin-bottom: 20px; 
+            text-align: center;
+            font-weight: bold;
+        }
+        .online { background-color: #d4edda; color: #155724; }
+        .offline { background-color: #f8d7da; color: #721c24; }
+        .error { background-color: #fff3cd; color: #856404; }
+        .btn { 
+            padding: 12px 20px; 
+            margin: 5px; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            transition: all 0.3s; 
+        }
+        .btn-start { background-color: #28a745; color: white; }
+        .btn-stop { background-color: #dc3545; color: white; }
+        .btn-status { background-color: #17a2b8; color: white; }
+        .btn-balance { background-color: #6c757d; color: white; }
+        .btn-operaciones { background-color: #ffc107; color: black; }
+        .btn:hover { opacity: 0.8; }
+        .btn-container { 
+            display: flex; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+            margin: 20px 0; 
+        }
+        .info-box { 
+            background-color: #e9ecef; 
+            padding: 15px; 
+            border-radius: 5px; 
+            margin: 10px 0; 
+        }
+        #result { 
+            margin-top: 20px; 
+            padding: 15px; 
+            border-radius: 5px; 
+            background-color: #f8f9fa; 
+            display: none; 
+        }
+        .loading { 
+            text-align: center; 
+            color: #6c757d; 
+            margin: 10px 0; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Bot de Trading Binance</h1>
+        
+        <div class="status" id="statusBox">
+            {% if bot_running %}✅ Bot funcionando{% else %}❌ Bot detenido{% endif %}
+        </div>
+
+        <div class="btn-container">
+            <button class="btn btn-start" onclick="controlBot('start')">▶️ Iniciar Bot</button>
+            <button class="btn btn-stop" onclick="controlBot('stop')">⏹️ Detener Bot</button>
+            <button class="btn btn-status" onclick="getStatus()">📊 Estado</button>
+            <button class="btn btn-balance" onclick="getBalance()">💰 Balance</button>
+            <button class="btn btn-operaciones" onclick="getOperaciones()">📈 Operaciones</button>
+        </div>
+
+        <div id="result"></div>
+        <div id="loading" class="loading" style="display: none;">Cargando...</div>
+
+        <div class="info-box">
+            <h3>📋 Endpoints API:</h3>
+            <ul>
+                <li><code>GET /</code> - Esta interfaz</li>
+                <li><code>GET /status</code> - Estado del bot</li>
+                <li><code>GET /start</code> - Iniciar bot</li>
+                <li><code>GET /stop</code> - Detener bot</li>
+                <li><code>GET /balance</code> - Balance de cuenta</li>
+                <li><code>GET /operaciones</code> - Operaciones</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function controlBot(action) {
+            showLoading(true);
+            fetch('/' + action)
+                .then(response => response.json())
+                .then(data => {
+                    showResult(JSON.stringify(data, null, 2));
+                    updateStatus();
+                    showLoading(false);
+                })
+                .catch(error => {
+                    showResult('Error: ' + error);
+                    showLoading(false);
+                });
+        }
+
+        function getStatus() {
+            showLoading(true);
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    showResult(JSON.stringify(data, null, 2));
+                    showLoading(false);
+                })
+                .catch(error => {
+                    showResult('Error: ' + error);
+                    showLoading(false);
+                });
+        }
+
+        function getBalance() {
+            showLoading(true);
+            fetch('/balance')
+                .then(response => response.json())
+                .then(data => {
+                    showResult(JSON.stringify(data, null, 2));
+                    showLoading(false);
+                })
+                .catch(error => {
+                    showResult('Error: ' + error);
+                    showLoading(false);
+                });
+        }
+
+        function getOperaciones() {
+            showLoading(true);
+            fetch('/operaciones')
+                .then(response => response.json())
+                .then(data => {
+                    showResult(JSON.stringify(data, null, 2));
+                    showLoading(false);
+                })
+                .catch(error => {
+                    showResult('Error: ' + error);
+                    showLoading(false);
+                });
+        }
+
+        function updateStatus() {
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    const statusBox = document.getElementById('statusBox');
+                    if (data.bot_running) {
+                        statusBox.innerHTML = '✅ Bot funcionando';
+                        statusBox.className = 'status online';
+                    } else {
+                        statusBox.innerHTML = '❌ Bot detenido';
+                        statusBox.className = 'status offline';
+                    }
+                });
+        }
+
+        function showResult(content) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<pre>' + content + '</pre>';
+            resultDiv.style.display = 'block';
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        // Actualizar estado cada 10 segundos
+        setInterval(updateStatus, 10000);
+    </script>
+</body>
+</html>
+"""
 
 class TradingBot:
     def __init__(self):
@@ -149,7 +349,8 @@ def run_bot():
 # Endpoints de la API
 @app.route('/')
 def home():
-    return "Bot funcionando ✅"
+    """Página principal con interfaz web"""
+    return render_template_string(HTML_TEMPLATE, bot_running=bot_state['running'])
 
 @app.route('/status')
 def status():
@@ -280,8 +481,9 @@ def get_operaciones():
 
 if __name__ == "__main__":
     print("Iniciando servidor web del bot de trading...")
-    print("Endpoints disponibles:")
-    print("  - GET / → Estado del servidor")
+    print("🌐 Interfaz web disponible en: http://localhost:5000")
+    print("📋 Endpoints disponibles:")
+    print("  - GET / → Interfaz web con botones")
     print("  - GET /status → Estado del bot y conexiones")
     print("  - GET /start → Iniciar bot")
     print("  - GET /stop → Detener bot")
@@ -289,4 +491,4 @@ if __name__ == "__main__":
     print("  - GET /operaciones → Ver operaciones")
     
     # Iniciar el servidor Flask
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    app.run(host='0.0.0.0', port=10000, debug=False)
