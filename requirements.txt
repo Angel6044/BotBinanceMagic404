@@ -6,3 +6,4 @@ matplotlib
 ccxt
 websockets
 python-dotenv
+python==3.11.9
